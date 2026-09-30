@@ -102,6 +102,5 @@ allow_host (owner)
 5. UI: create → run → show label + note + explorer
 6. Repo: design, E2E receipts, honest limits
 
-## Live verification
-
-See verification/studionet-e2e.md for addresses and transaction receipts after deploy.
+### Live Verification
+See [verification/studionet-e2e.md](verification studionet-e2e.md) for addresses and transaction receipts after deploy.
