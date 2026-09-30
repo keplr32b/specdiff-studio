@@ -6,6 +6,7 @@ Seal a check with spec_url + impl_url (allowlisted HTTPS).
 run_check: validators fetch both pages and agree on
 COMPATIBLE | BREAKING | UNCLEAR (label only).
 Empty/failed fetch => UNCLEAR (never BREAKING).
+Both readable + clear mismatch or unrelated topics => BREAKING.
 No custody, no halt flags, no credits.
 """
 
@@ -59,14 +60,12 @@ class SpecDiff(gl.Contract):
     owner: Address
     allowed_hosts: TreeMap[str, bool]
 
-    # check_id -> metadata
     exists: TreeMap[str, bool]
     title_of: TreeMap[str, str]
     spec_url_of: TreeMap[str, str]
     impl_url_of: TreeMap[str, str]
     creator_of: TreeMap[str, Address]
 
-    # last result
     last_label_of: TreeMap[str, str]
     last_note_of: TreeMap[str, str]
     run_count_of: TreeMap[str, u256]
@@ -112,7 +111,6 @@ class SpecDiff(gl.Contract):
         self.history_json_of[cid] = "[]"
 
     def _fetch_snippet(self, url: str) -> tuple:
-        """Returns (ok: bool, snippet: str)."""
         try:
             content = gl.nondet.web.render(url, mode="text")
             snippet = (content[:3000] if content else "")
@@ -138,23 +136,22 @@ class SpecDiff(gl.Contract):
                 '{ "label": "COMPATIBLE" or "BREAKING" or "UNCLEAR", '
                 '"note": "<short reason max 160 chars>" }\n'
                 "Rules:\n"
-                "- COMPATIBLE only if both sides are readable and clearly aligned "
-                "in topic and substance for a spec-vs-impl check.\n"
-                "- BREAKING only if both sides are readable and there is a clear "
-                "material mismatch (conflicting claims, missing critical surface, "
-                "or obvious divergence).\n"
-                "- UNCLEAR if either side is empty, fetch failed, off-topic noise, "
-                "or the comparison is ambiguous.\n"
-                "- Never use BREAKING when either side failed or is empty.\n"
+                "- If EITHER side is empty, fetch-failed, or unreadable: label MUST be UNCLEAR. "
+                "Never BREAKING or COMPATIBLE in that case.\n"
+                "- If BOTH sides are readable and clearly aligned in topic and substance: COMPATIBLE.\n"
+                "- If BOTH sides are readable and there is a clear material mismatch "
+                "(conflicting claims, missing critical API/surface, or clearly unrelated topics/"
+                "domains that cannot satisfy a spec-vs-impl relationship): BREAKING.\n"
+                "- UNCLEAR only when evidence is insufficient or ambiguous, not when pages are "
+                "readable and obviously incompatible.\n"
             )
             raw = gl.nondet.exec_prompt(prompt)
             data = parse_json_response(raw)
             label = str(data.get("label", "")).strip().upper()
             if label not in ("COMPATIBLE", "BREAKING", "UNCLEAR"):
                 label = "UNCLEAR"
-            if (not ok_spec or not ok_impl) and label == "BREAKING":
-                label = "UNCLEAR"
-            if (not ok_spec or not ok_impl) and label == "COMPATIBLE":
+            # Hard fail-closed: bad fetch cannot be BREAKING or COMPATIBLE
+            if (not ok_spec or not ok_impl):
                 label = "UNCLEAR"
             note = str(data.get("note", "")).strip()[:160]
             return canonical({"label": label, "note": note})
