@@ -3,80 +3,242 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SpecDiff Studio</title>
+  <title>SpecDiff Studio — GenLayer compatibility checks</title>
+  <meta name="description" content="Seal a spec URL and an impl URL. GenLayer validators fetch both and agree on COMPATIBLE, BREAKING, or UNCLEAR." />
   <style>
     :root {
-      --bg: #0b0f14; --panel: #121820; --line: #1e2a38;
-      --text: #e8eef6; --muted: #8b9bb0; --accent: #5b8cff;
+      --bg: #070a0f;
+      --bg2: #0c1220;
+      --panel: rgba(18, 24, 36, 0.92);
+      --line: rgba(255,255,255,0.08);
+      --text: #eef3fb;
+      --muted: #93a0b8;
+      --accent: #6b9fff;
+      --accent2: #8b7bff;
+      --ok: #3ecf8e;
+      --bad: #ff6b81;
+      --warn: #f0c14a;
+      --radius: 18px;
+      --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
     * { box-sizing: border-box; }
     body {
-      margin: 0; font-family: system-ui, sans-serif;
-      background: radial-gradient(1200px 600px at 10% -10%, #152238 0%, var(--bg) 55%);
-      color: var(--text); line-height: 1.5; min-height: 100vh;
+      margin: 0;
+      font-family: var(--font);
+      color: var(--text);
+      min-height: 100vh;
+      background:
+        radial-gradient(900px 500px at 85% -10%, rgba(107,159,255,0.18), transparent 55%),
+        radial-gradient(700px 400px at -10% 20%, rgba(139,123,255,0.12), transparent 50%),
+        linear-gradient(180deg, var(--bg2), var(--bg));
+      line-height: 1.55;
     }
-    a { color: var(--accent); }
-    .wrap { max-width: 720px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
-    h1 { margin: 0; font-size: 1.4rem; }
-    .tag { color: var(--muted); margin: 0.25rem 0 1rem; font-size: 0.95rem; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 1.25rem 1rem 3.5rem; }
+
+    /* top bar */
+    .nav {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 0.75rem; margin-bottom: 1.75rem;
+    }
+    .brand { display: flex; align-items: center; gap: 0.75rem; }
+    .mark {
+      width: 42px; height: 42px; border-radius: 12px;
+      background: linear-gradient(135deg, #4f7dff, #8b7bff);
+      display: grid; place-items: center; font-weight: 800; font-size: 0.85rem;
+      box-shadow: 0 10px 30px rgba(79,125,255,0.35);
+    }
+    .brand h1 { margin: 0; font-size: 1.15rem; letter-spacing: -0.02em; }
+    .brand span { display: block; color: var(--muted); font-size: 0.78rem; margin-top: 0.1rem; }
+    .nav-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .pill {
+      font-size: 0.75rem; color: var(--muted); border: 1px solid var(--line);
+      padding: 0.35rem 0.7rem; border-radius: 999px; background: rgba(0,0,0,0.25);
+    }
+
+    /* hero */
+    .hero {
+      border: 1px solid var(--line); border-radius: calc(var(--radius) + 4px);
+      background: linear-gradient(145deg, rgba(24,32,52,0.9), rgba(12,16,28,0.95));
+      padding: 1.5rem 1.35rem 1.35rem; margin-bottom: 1.25rem;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+    }
+    .hero h2 {
+      margin: 0 0 0.6rem; font-size: clamp(1.35rem, 4vw, 1.85rem);
+      letter-spacing: -0.03em; line-height: 1.2; max-width: 18ch;
+    }
+    .hero p { margin: 0; color: var(--muted); max-width: 54ch; font-size: 0.95rem; }
+    .labels { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 1rem; }
+    .label {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
+      padding: 0.35rem 0.65rem; border-radius: 8px; border: 1px solid transparent;
+    }
+    .l-ok { color: var(--ok); background: rgba(62,207,142,0.1); border-color: rgba(62,207,142,0.28); }
+    .l-bad { color: var(--bad); background: rgba(255,107,129,0.1); border-color: rgba(255,107,129,0.28); }
+    .l-warn { color: var(--warn); background: rgba(240,193,74,0.1); border-color: rgba(240,193,74,0.28); }
+
+    .grid { display: grid; gap: 1rem; }
+    @media (min-width: 820px) {
+      .grid-main { grid-template-columns: 1.15fr 0.85fr; align-items: start; }
+    }
+
     .card {
-      background: var(--panel); border: 1px solid var(--line);
-      border-radius: 14px; padding: 1rem 1.1rem; margin-bottom: 1rem;
+      border: 1px solid var(--line); border-radius: var(--radius);
+      background: var(--panel); padding: 1.15rem 1.2rem;
+      backdrop-filter: blur(8px);
     }
-    h2 { margin: 0 0 0.85rem; font-size: 1rem; }
-    label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.65rem; }
-    input {
-      display: block; width: 100%; margin-top: 0.3rem; padding: 0.5rem 0.65rem;
-      border-radius: 10px; border: 1px solid var(--line); background: #0a1018;
-      color: var(--text); font-size: 0.85rem;
-    }
-    button {
-      appearance: none; cursor: pointer; border: none; border-radius: 10px;
-      padding: 0.55rem 0.9rem; font-weight: 600; font-size: 0.9rem;
-      background: linear-gradient(135deg, #3d6ef5, #5b8cff); color: #fff;
-      margin: 0.25rem 0.4rem 0.25rem 0;
-    }
-    button.secondary { background: #1a2433; border: 1px solid var(--line); }
+    .card h3 { margin: 0 0 0.85rem; font-size: 0.95rem; letter-spacing: -0.01em; }
     .muted { color: var(--muted); font-size: 0.88rem; }
-    #walletStatus { display: inline-block; margin-left: 0.4rem; font-size: 0.8rem; word-break: break-all; }
+    .mono { font-family: var(--mono); font-size: 0.8rem; word-break: break-all; }
+
+    .addr-box {
+      margin: 0.5rem 0 0.75rem; padding: 0.65rem 0.75rem; border-radius: 12px;
+      background: #080c14; border: 1px solid var(--line); font-family: var(--mono);
+      font-size: 0.78rem; word-break: break-all;
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+    th, td { text-align: left; padding: 0.5rem 0.35rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+
+    label { display: block; font-size: 0.78rem; color: var(--muted); margin-bottom: 0.7rem; }
+    input {
+      display: block; width: 100%; margin-top: 0.3rem; padding: 0.55rem 0.7rem;
+      border-radius: 11px; border: 1px solid var(--line); background: #080c14;
+      color: var(--text); font-size: 0.88rem; font-family: var(--mono);
+    }
+    input:focus { outline: none; border-color: rgba(107,159,255,0.55); box-shadow: 0 0 0 3px rgba(107,159,255,0.12); }
+
+    button {
+      appearance: none; cursor: pointer; border: none; border-radius: 11px;
+      padding: 0.6rem 1rem; font-weight: 650; font-size: 0.88rem;
+      background: linear-gradient(135deg, #4f7dff, #6b9fff); color: #fff;
+      margin: 0.2rem 0.4rem 0.2rem 0;
+      box-shadow: 0 8px 20px rgba(79,125,255,0.25);
+    }
+    button.secondary {
+      background: #141c2c; border: 1px solid var(--line); box-shadow: none; color: var(--text);
+    }
+    button:active { transform: scale(0.98); }
+    #walletStatus { font-size: 0.78rem; color: var(--muted); margin-left: 0.35rem; word-break: break-all; }
+
     #out {
-      margin-top: 0.85rem; padding: 0.75rem; border-radius: 10px;
-      border: 1px solid var(--line); background: #0a1018; font-size: 0.78rem;
-      white-space: pre-wrap; word-break: break-word; min-height: 4rem; max-height: 280px; overflow: auto;
+      margin-top: 0.85rem; padding: 0.8rem 0.9rem; border-radius: 12px;
+      border: 1px solid var(--line); background: #080c14; color: var(--text);
+      font-family: var(--mono); font-size: 0.76rem; white-space: pre-wrap;
+      word-break: break-word; min-height: 5rem; max-height: 260px; overflow: auto;
+    }
+
+    .steps { margin: 0; padding-left: 1.1rem; color: var(--muted); font-size: 0.88rem; }
+    .steps li { margin-bottom: 0.45rem; }
+    .steps strong { color: var(--text); }
+
+    footer {
+      margin-top: 1.75rem; padding-top: 1rem; border-top: 1px solid var(--line);
+      color: var(--muted); font-size: 0.8rem;
     }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <header>
-      <h1>SpecDiff Studio</h1>
-      <p class="tag">Spec vs impl — GenLayer consensus (browser app)</p>
-      <button type="button" id="btnConnect">Connect wallet</button>
-      <span id="walletStatus" class="muted">Not connected</span>
-    </header>
+    <div class="nav">
+      <div class="brand">
+        <div class="mark">SD</div>
+        <div>
+          <h1>SpecDiff Studio</h1>
+          <span>Compatibility reports on GenLayer</span>
+        </div>
+      </div>
+      <div class="nav-actions">
+        <span class="pill">Studionet · live</span>
+        <button type="button" id="btnConnect">Connect wallet</button>
+        <span id="walletStatus">Not connected</span>
+      </div>
+    </div>
 
-    <section class="card">
-      <h2>Create check</h2>
-      <label>check_id <input id="checkId" value="ui-demo-mobile-1" /></label>
-      <label>spec_url <input id="specUrl" value="https://docs.genlayer.com" /></label>
-      <label>impl_url <input id="implUrl" value="https://docs.genlayer.com" /></label>
-      <label>title <input id="title" value="UI mobile demo" /></label>
-      <button type="button" id="btnCreate">create_check</button>
+    <section class="hero">
+      <h2>Did the live page drift from the spec?</h2>
+      <p>
+        Register a check with two allowlisted HTTPS URLs. Validators independently fetch both pages
+        and reach comparative consensus on a closed label — not free-form chat, not escrow.
+      </p>
+      <div class="labels">
+        <span class="label l-ok">COMPATIBLE</span>
+        <span class="label l-bad">BREAKING</span>
+        <span class="label l-warn">UNCLEAR</span>
+      </div>
     </section>
 
-    <section class="card">
-      <h2>Run / read</h2>
-      <label>check_id <input id="runId" value="ui-demo-mobile-1" /></label>
-      <button type="button" id="btnRun">run_check</button>
-      <button type="button" id="btnLast" class="secondary">get_last</button>
-      <pre id="out">Ready. Connect wallet (MetaMask mobile / browser).</pre>
-    </section>
+    <div class="grid grid-main">
+      <div class="grid">
+        <section class="card">
+          <h3>Create check</h3>
+          <label>check_id <input id="checkId" value="ui-demo-mobile-1" /></label>
+          <label>spec_url <input id="specUrl" value="https://docs.genlayer.com" /></label>
+          <label>impl_url <input id="implUrl" value="https://docs.genlayer.com" /></label>
+          <label>title <input id="title" value="UI mobile demo" /></label>
+          <button type="button" id="btnCreate">create_check</button>
+        </section>
 
-    <p class="muted">
-      Contract
-      <a href="https://explorer-studio.genlayer.com/address/0x7A728FDBA822bA16adDc9eD3138980FF89b9868C" target="_blank" rel="noopener">0x7A728F…868C</a>
-      · Hosts must be owner-allowlisted. Studio network in wallet required.
-    </p>
+        <section class="card">
+          <h3>Run &amp; read</h3>
+          <label>check_id <input id="runId" value="ui-demo-mobile-1" /></label>
+          <button type="button" id="btnRun">run_check</button>
+          <button type="button" id="btnLast" class="secondary">get_last</button>
+          <pre id="out">Connect a wallet on Studio / studionet, then create and run a check. Consensus on run_check can take 1–3 minutes.</pre>
+        </section>
+      </div>
+
+      <div class="grid">
+        <section class="card">
+          <h3>Live contract</h3>
+          <div class="addr-box">0x7A728FDBA822bA16adDc9eD3138980FF89b9868C</div>
+          <p class="muted" style="margin:0 0 0.75rem;">
+            <a href="https://explorer-studio.genlayer.com/address/0x7A728FDBA822bA16adDc9eD3138980FF89b9868C" target="_blank" rel="noopener">Explorer</a>
+            · Owner allowlists hosts · dual fetch · label-only consensus
+          </p>
+          <p class="muted" style="margin:0;font-size:0.82rem;">
+            Hosts already proven: <span class="mono">docs.genlayer.com</span>, <span class="mono">genlayer.com</span>, <span class="mono">rekt.news</span>
+          </p>
+        </section>
+
+        <section class="card">
+          <h3>Proven smoke</h3>
+          <table>
+            <thead>
+              <tr><th>Check</th><th>Result</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="mono">docs-align-2</td><td><span class="label l-ok">COMPATIBLE</span></td></tr>
+              <tr><td class="mono">unclear-2</td><td><span class="label l-warn">UNCLEAR</span></td></tr>
+              <tr><td class="mono">break-hard-2</td><td><span class="label l-bad">BREAKING</span></td></tr>
+              <tr><td class="mono">reject-2</td><td class="muted">host blocked</td></tr>
+            </tbody>
+          </table>
+          <p class="muted" style="margin:0.75rem 0 0;">
+            Receipts:
+            <a href="https://github.com/keplr32b/specdiff-studio/blob/main/verification/studionet-e2e.md" target="_blank" rel="noopener">studionet-e2e.md</a>
+          </p>
+        </section>
+
+        <section class="card">
+          <h3>How it works</h3>
+          <ol class="steps">
+            <li><strong>allow_host</strong> — owner, hostname only</li>
+            <li><strong>create_check</strong> — seal spec + impl URLs</li>
+            <li><strong>run_check</strong> — validators fetch &amp; agree on label</li>
+            <li><strong>get_last / history</strong> — on-chain report</li>
+          </ol>
+        </section>
+      </div>
+    </div>
+
+    <footer>
+      SpecDiff Studio is not escrow, halt, or metered credits — a compatibility report product on GenLayer.
+      Demo network · not a legal or security audit.
+    </footer>
   </div>
 
   <script type="module">
@@ -87,7 +249,6 @@
     const CONTRACT = "0x7A728FDBA822bA16adDc9eD3138980FF89b9868C";
     const out = document.getElementById("out");
     const walletStatus = document.getElementById("walletStatus");
-    let address = null;
     let client = null;
 
     function log(msg) {
@@ -96,26 +257,20 @@
 
     async function connect() {
       if (!window.ethereum) {
-        log("No wallet. Open in MetaMask in-app browser or a wallet browser.");
+        log("No EIP-1193 wallet. Open this site inside MetaMask’s in-app browser.");
         return;
       }
       const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-      address = accounts[0];
+      const address = accounts[0];
       walletStatus.textContent = address;
-      client = createClient({
-        chain: studionet,
-        account: address,
-        provider: window.ethereum,
-      });
+      client = createClient({ chain: studionet, account: address, provider: window.ethereum });
       try { await client.connect("studionet"); } catch (e) {
-        log("connect warning: " + (e && e.message ? e.message : e));
+        log("Network connect note: " + (e?.message || e));
       }
       try {
-        if (client.initializeConsensusSmartContract) {
-          await client.initializeConsensusSmartContract();
-        }
+        if (client.initializeConsensusSmartContract) await client.initializeConsensusSmartContract();
       } catch (_) {}
-      log("Connected. You can create_check / run_check.");
+      log("Wallet connected. You can create_check and run_check on allowlisted hosts.");
     }
 
     async function write(functionName, args) {
@@ -135,7 +290,7 @@
       } catch {
         txHash = await client.writeContract(payload);
       }
-      log("Tx: " + txHash + "\nWaiting (run_check may take 1–3 min)...");
+      log("Submitted " + functionName + "\n" + txHash + "\nWaiting for consensus…");
       try {
         await client.waitForTransactionReceipt({
           hash: txHash,
@@ -144,19 +299,18 @@
           interval: 5000,
         });
       } catch (e) {
-        log("Tx " + txHash + " — " + (e && e.message ? e.message : e));
+        log("Tx " + txHash + "\n" + (e?.message || e) + "\nCheck explorer if needed.");
       }
       return txHash;
     }
 
     async function read(functionName, args) {
-      const readClient = createClient({ chain: studionet });
-      return readClient.readContract({ address: CONTRACT, functionName, args });
+      return createClient({ chain: studionet }).readContract({
+        address: CONTRACT, functionName, args,
+      });
     }
 
-    document.getElementById("btnConnect").onclick = () =>
-      connect().catch((e) => log(e.message || String(e)));
-
+    document.getElementById("btnConnect").onclick = () => connect().catch((e) => log(e.message || String(e)));
     document.getElementById("btnCreate").onclick = async () => {
       try {
         const hash = await write("create_check", [
@@ -165,30 +319,21 @@
           document.getElementById("implUrl").value.trim(),
           document.getElementById("title").value.trim(),
         ]);
-        log("create_check done\n" + hash);
-      } catch (e) {
-        log("create_check: " + (e.message || e));
-      }
+        log("create_check accepted\n" + hash);
+      } catch (e) { log("create_check: " + (e.message || e)); }
     };
-
     document.getElementById("btnRun").onclick = async () => {
       try {
         const id = document.getElementById("runId").value.trim();
         const hash = await write("run_check", [id]);
         const last = await read("get_last", [id]);
         log({ tx: hash, get_last: last });
-      } catch (e) {
-        log("run_check: " + (e.message || e));
-      }
+      } catch (e) { log("run_check: " + (e.message || e)); }
     };
-
     document.getElementById("btnLast").onclick = async () => {
       try {
-        const id = document.getElementById("runId").value.trim();
-        log(await read("get_last", [id]));
-      } catch (e) {
-        log("get_last: " + (e.message || e));
-      }
+        log(await read("get_last", [document.getElementById("runId").value.trim()]));
+      } catch (e) { log("get_last: " + (e.message || e)); }
     };
   </script>
 </body>
