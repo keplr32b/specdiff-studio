@@ -26,7 +26,7 @@ const icon = (name, size = 18) => {
     spark: '<path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2L12 3Z"/><path d="m19 14 .9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14Z"/>',
     chevronDown: '<path d="m7 10 5 5 5-5"/>',
   };
-  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || ""}</svg>`;
+  return `<svg width="\( {size}" height=" \){size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || ""}</svg>`;
 };
 
 document.querySelector("#app").innerHTML = `
@@ -94,7 +94,7 @@ document.querySelector("#app").innerHTML = `
             <div class="contract-details">
               <div class="contract-title-row"><h3>SpecDiff compatibility contract</h3><span class="live-tag"><i></i> CONTRACT READY</span></div>
               <p>Creates a check, evaluates it, then exposes the latest recorded result.</p>
-              <div class="address-row"><span class="mono address" id="contract-address">${CONTRACT_ADDRESS}</span><button class="icon-button copy-address" title="Copy contract address" aria-label="Copy contract address">${icon("copy", 15)}</button><a class="contract-explorer" href="${explorerBase}/contracts/${CONTRACT_ADDRESS}" target="_blank" rel="noopener noreferrer">View in explorer ${icon("external", 13)}</a></div>
+              <div class="address-row"><span class="mono address" id="contract-address">\( {CONTRACT_ADDRESS}</span><button class="icon-button copy-address" title="Copy contract address" aria-label="Copy contract address"> \){icon("copy", 15)}</button><a class="contract-explorer" href="\( {explorerBase}/address/ \){CONTRACT_ADDRESS}" target="_blank" rel="noopener noreferrer">View in explorer ${icon("external", 13)}</a></div>
             </div>
           </div>
           <div class="contract-methods"><span class="method-label">METHODS</span><code>create_check</code><code>run_check</code><code>get_last</code><span class="method-chain">${icon("chevron", 14)}</span></div>
@@ -144,9 +144,9 @@ document.querySelector("#app").innerHTML = `
               <div class="progress-head"><span>TRANSACTION PROGRESS</span><span id="progress-summary">Ready</span></div>
               <ol class="progress-steps">
                  <li data-step="create"><span class="step-indicator"></span><div><b>Create check</b><small>Write create_check(check_id, spec_url, impl_url, title)</small></div><span class="step-state">WAITING</span></li>
-                <li data-step="create-confirm"><span class="step-indicator"></span><div><b>Confirm creation</b><small>Wait for on-chain finalization</small></div><span class="step-state">WAITING</span></li>
+                <li data-step="create-confirm"><span class="step-indicator"></span><div><b>Confirm creation</b><small>Wait for on-chain acceptance</small></div><span class="step-state">WAITING</span></li>
                 <li data-step="run"><span class="step-indicator"></span><div><b>Run evaluation</b><small>Write run_check(check_id)</small></div><span class="step-state">WAITING</span></li>
-                <li data-step="run-confirm"><span class="step-indicator"></span><div><b>Confirm evaluation</b><small>Wait for on-chain finalization</small></div><span class="step-state">WAITING</span></li>
+                <li data-step="run-confirm"><span class="step-indicator"></span><div><b>Confirm evaluation</b><small>Wait for on-chain acceptance</small></div><span class="step-state">WAITING</span></li>
                 <li data-step="read"><span class="step-indicator"></span><div><b>Read latest result</b><small>Read get_last(check_id)</small></div><span class="step-state">WAITING</span></li>
               </ol>
             </div>
@@ -177,20 +177,25 @@ const consoleBody = $("#console-body");
 const errorBanner = $("#error-banner");
 
 function shortAddress(address) {
-  return `${address.slice(0, 6)}…${address.slice(-4)}`;
+  if (!address || address.length < 10) return address || "";
+  return `\( {address.slice(0, 6)}… \){address.slice(-4)}`;
 }
 
 function setWalletConnected(address) {
   state.account = address;
   state.client = createClient({ chain: studionet, account: address, provider: window.ethereum });
-  connectButton.innerHTML = `${icon("wallet", 16)}<span>${shortAddress(address)}</span><span class="connected-indicator"></span>`;
+  connectButton.innerHTML = `\( {icon("wallet", 16)}<span> \){shortAddress(address)}</span><span class="connected-indicator"></span>`;
   connectButton.classList.add("is-connected");
   walletState.innerHTML = `<i class="connected"></i><span>Connected <b>${shortAddress(address)}</b></span>`;
   updateSubmitLabel();
 }
 
 function updateSubmitLabel() {
-  if (!state.busy) runButton.innerHTML = state.account ? `Run compatibility check ${icon("arrow", 16)}` : `Connect &amp; run ${icon("arrow", 16)}`;
+  if (!state.busy) {
+    runButton.innerHTML = state.account
+      ? `Run compatibility check ${icon("arrow", 16)}`
+      : `Connect &amp; run ${icon("arrow", 16)}`;
+  }
 }
 
 function addLog(message, type = "") {
@@ -199,7 +204,7 @@ function addLog(message, type = "") {
   const row = document.createElement("div");
   row.className = `log-line ${type}`;
   const time = new Date().toLocaleTimeString([], { hour12: false });
-  row.innerHTML = `<time>${time}</time><span class="log-mark">${type === "error" ? "!" : type === "success" ? "✓" : "›"}</span><span class="log-message"></span>`;
+  row.innerHTML = `<time>\( {time}</time><span class="log-mark"> \){type === "error" ? "!" : type === "success" ? "✓" : "›"}</span><span class="log-message"></span>`;
   row.querySelector(".log-message").textContent = message;
   consoleBody.append(row);
   consoleBody.scrollTop = consoleBody.scrollHeight;
@@ -211,7 +216,7 @@ function addHashLog(label, hash) {
   const row = document.createElement("div");
   row.className = "log-line hash-line";
   const time = new Date().toLocaleTimeString([], { hour12: false });
-  row.innerHTML = `<time>${time}</time><span class="log-mark">↗</span><span class="log-message"><span>${label} · </span><a href="${explorerBase}/tx/${encodeURIComponent(hash)}" target="_blank" rel="noopener noreferrer"></a></span><button type="button" class="hash-copy" aria-label="Copy transaction hash">${icon("copy", 13)}</button>`;
+  row.innerHTML = `<time>\( {time}</time><span class="log-mark">↗</span><span class="log-message"><span> \){label} · </span><a href="\( {explorerBase}/tx/ \){encodeURIComponent(hash)}" target="_blank" rel="noopener noreferrer"></a></span><button type="button" class="hash-copy" aria-label="Copy transaction hash">${icon("copy", 13)}</button>`;
   const link = row.querySelector("a");
   link.textContent = hash;
   row.querySelector(".hash-copy").addEventListener("click", () => copyText(hash));
@@ -229,7 +234,7 @@ function addJsonLog(label, value) {
   heading.textContent = label;
   const pre = document.createElement("pre");
   try {
-    pre.textContent = JSON.stringify(value, (_, item) => typeof item === "bigint" ? item.toString() : item, 2);
+    pre.textContent = JSON.stringify(value, (_, item) => (typeof item === "bigint" ? item.toString() : item), 2);
   } catch {
     pre.textContent = String(value);
   }
@@ -283,7 +288,8 @@ function setStep(step, status) {
   const element = document.querySelector(`[data-step="${step}"]`);
   if (!element) return;
   element.dataset.status = status;
-  element.querySelector(".step-state").textContent = status === "active" ? "IN PROGRESS" : status.toUpperCase();
+  element.querySelector(".step-state").textContent =
+    status === "active" ? "IN PROGRESS" : status.toUpperCase();
 }
 
 function setProgressSummary(text, status = "") {
@@ -297,7 +303,9 @@ function showError(message) {
   errorBanner.hidden = false;
   errorBanner.innerHTML = `<span class="error-mark">!</span><span></span><button type="button" aria-label="Dismiss error">×</button>`;
   errorBanner.querySelector("span:nth-child(2)").textContent = message;
-  errorBanner.querySelector("button").addEventListener("click", () => { errorBanner.hidden = true; });
+  errorBanner.querySelector("button").addEventListener("click", () => {
+    errorBanner.hidden = true;
+  });
   addLog(message, "error");
 }
 
@@ -320,11 +328,14 @@ async function connectWallet() {
     if (!accounts?.[0]) throw new Error("No wallet account was returned.");
     setWalletConnected(accounts[0]);
     await state.client.connect("studionet");
-    addLog(`Wallet connected · ${accounts[0]}`, "success");
+    addLog(`Wallet connected · ${shortAddress(accounts[0])}`, "success");
     return state.client;
   } catch (error) {
-    if (error?.code === 4001) showError("Wallet connection was declined. Approve the request in MetaMask to continue.");
-    else showError(error?.message || "Could not connect to MetaMask.");
+    if (error?.code === 4001) {
+      showError("Wallet connection was declined. Approve the request in MetaMask to continue.");
+    } else {
+      showError(error?.message || "Could not connect to MetaMask.");
+    }
     return null;
   }
 }
@@ -333,34 +344,62 @@ async function writeAndConfirm(functionName, args, label) {
   const write = { address: CONTRACT_ADDRESS, functionName, args };
   const client = state.client;
   let fees;
+
   if (typeof client.estimateTransactionFeesForWrite === "function") {
     addLog(`Estimating fees for ${functionName}…`);
-    const estimate = await client.estimateTransactionFeesForWrite(write);
-    if (estimate && "distribution" in estimate && "feeValue" in estimate) {
-      fees = { distribution: estimate.distribution, feeValue: estimate.feeValue };
-      addLog(`Fee estimate ready · ${String(estimate.feeValue)} fee value`);
-    } else {
-      addLog("Fee estimator returned no distribution and feeValue; submitting without estimate.");
+    try {
+      const estimate = await client.estimateTransactionFeesForWrite(write);
+      if (estimate && "distribution" in estimate && "feeValue" in estimate) {
+        fees = { distribution: estimate.distribution, feeValue: estimate.feeValue };
+        addLog(`Fee estimate ready · ${String(estimate.feeValue)} fee value`);
+      } else {
+        addLog("Fee estimator returned no distribution and feeValue; submitting without estimate.");
+      }
+    } catch {
+      addLog("Fee estimate skipped; submitting without estimate.");
     }
   }
+
   const hash = await client.writeContract({ ...write, ...(fees ? { fees } : {}) });
   if (!hash) throw new Error(`${functionName} did not return a transaction hash.`);
   state.txHashes.push(hash);
   addHashLog(label, hash);
-  const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED });
-  const executionName = receipt?.txExecutionResultName;
-  const executionDetails = executionName ? " · " + executionName : "";
-  addLog(functionName + " transaction finalized" + executionDetails + ".", "success");
-  return { hash, receipt };
-}
-async function verifyAllowedHosts(urls) {
-  const hosts = [...new Set(urls.map((value) => {
-    const url = new URL(value);
-    if (url.protocol !== "https:") {
-      throw new Error("Only public HTTPS URLs are accepted by the SpecDiff contract.");
+
+  // StudioNet: ACCEPTED is enough. Long retries. Timeout does not hard-fail the flow.
+  try {
+    const receipt = await client.waitForTransactionReceipt({
+      hash,
+      status: TransactionStatus.ACCEPTED,
+      retries: 180,
+      interval: 5000,
+    });
+    if (receipt?.txExecutionResultName) {
+      addLog(`${functionName} accepted · ${receipt.txExecutionResultName}`, "success");
+    } else {
+      addLog(`${functionName} accepted on-chain.`, "success");
     }
-    return url.hostname.toLowerCase();
-  }))];
+    return { hash, receipt, timedOut: false };
+  } catch {
+    addLog(
+      `${functionName} wait timed out; tx may still finalize on explorer. Continuing…`,
+      "error"
+    );
+    return { hash, receipt: null, timedOut: true };
+  }
+}
+
+async function verifyAllowedHosts(urls) {
+  const hosts = [
+    ...new Set(
+      urls.map((value) => {
+        const url = new URL(value);
+        if (url.protocol !== "https:") {
+          throw new Error("Only public HTTPS URLs are accepted by the SpecDiff contract.");
+        }
+        return url.hostname.toLowerCase();
+      })
+    ),
+  ];
   for (const host of hosts) {
     addLog(`Checking whether ${host} is allowlisted on StudioNet…`);
     const allowed = await state.client.readContract({
@@ -369,9 +408,33 @@ async function verifyAllowedHosts(urls) {
       args: [host],
     });
     if (allowed !== true) {
-      throw new Error(`The contract owner has not allowlisted ${host}. Use a permitted HTTPS host or ask the contract owner to allow it.`);
+      throw new Error(
+        `The contract owner has not allowlisted ${host}. Use a permitted HTTPS host or ask the contract owner to allow it.`
+      );
     }
   }
+}
+
+async function readLastWithRetry(checkId) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= 6; attempt++) {
+    try {
+      const result = await state.client.readContract({
+        address: CONTRACT_ADDRESS,
+        functionName: "get_last",
+        args: [checkId],
+      });
+      if (result != null && result !== "") return result;
+    } catch (err) {
+      lastError = err;
+    }
+    if (attempt < 6) {
+      addLog(`get_last not ready yet (try ${attempt}/6). Waiting…`);
+      await new Promise((r) => setTimeout(r, 8000));
+    }
+  }
+  if (lastError) throw lastError;
+  throw new Error("get_last returned empty after retries. Check the run_check tx on explorer.");
 }
 
 async function runCheck(event) {
@@ -379,14 +442,17 @@ async function runCheck(event) {
   if (state.busy) return;
   errorBanner.hidden = true;
   if (!form.reportValidity()) return;
+
   if (!state.account) {
     const client = await connectWallet();
     if (!client) return;
   }
-  const checkId = $("#check-id").value.trim();
+
+const checkId = $("#check-id").value.trim();
   const specUrl = $("#spec-url").value.trim();
   const implUrl = $("#impl-url").value.trim();
   if (!checkId || !specUrl || !implUrl) return;
+
   state.busy = true;
   state.output = [];
   state.stage = "create";
@@ -396,28 +462,45 @@ async function runCheck(event) {
   runButton.innerHTML = `<span class="button-pulse"></span> Working on-chain`;
   $("#progress-summary").textContent = "Starting";
   addLog(`Starting check "${checkId}" on StudioNet.`);
+
   try {
     await verifyAllowedHosts([specUrl, implUrl]);
+
     setStep("create", "active");
     setProgressSummary("Creating check", "active");
     addLog("Submitting create_check(check_id, spec_url, impl_url, title)…");
-    await writeAndConfirm("create_check", [checkId, specUrl, implUrl, `SpecDiff check · ${checkId}`], "CREATE_CHECK");
+    const created = await writeAndConfirm(
+      "create_check",
+      [checkId, specUrl, implUrl, `SpecDiff check · ${checkId}`],
+      "CREATE_CHECK"
+    );
     setStep("create", "complete");
     setStep("create-confirm", "complete");
+
     setStep("run", "active");
     setProgressSummary("Running evaluation", "active");
     addLog("Submitting run_check(check_id)…");
-    await writeAndConfirm("run_check", [checkId], "RUN_CHECK");
+    const ran = await writeAndConfirm("run_check", [checkId], "RUN_CHECK");
     setStep("run", "complete");
     setStep("run-confirm", "complete");
+
     setStep("read", "active");
     setProgressSummary("Reading contract result", "active");
     addLog("Reading get_last(check_id)…");
-    const result = await state.client.readContract({
-      address: CONTRACT_ADDRESS,
-      functionName: "get_last",
-      args: [checkId],
-    });
+
+    let result;
+    try {
+      result = await readLastWithRetry(checkId);
+    } catch (readErr) {
+      if (ran.timedOut || created.timedOut) {
+        throw new Error(
+          (readErr?.message || "get_last empty") +
+            " Wait timed out earlier; open run_check on explorer — it may still show COMPATIBLE."
+        );
+      }
+      throw readErr;
+    }
+
     setStep("read", "complete");
     setProgressSummary("Result read from contract", "complete");
     addLog("Contract read completed. Result shown exactly as returned.", "success");
@@ -428,13 +511,16 @@ async function runCheck(event) {
     const message = error?.shortMessage || error?.message || "The compatibility check failed.";
     const rejected = error?.code === 4001 || /user rejected|denied transaction/i.test(message);
     setProgressSummary(rejected ? "Wallet action declined" : "Check stopped", "error");
-    showError(rejected ? "A wallet transaction was declined. No verdict has been displayed." : message);
+    showError(
+      rejected ? "A wallet transaction was declined. No verdict has been displayed." : message
+    );
   } finally {
     state.busy = false;
     runButton.disabled = false;
     updateSubmitLabel();
   }
 }
+
 async function copyText(value) {
   try {
     await navigator.clipboard.writeText(value);
@@ -443,18 +529,21 @@ async function copyText(value) {
     showError("Clipboard access is unavailable in this browser.");
   }
 }
+
 connectButton.addEventListener("click", async () => {
   if (state.account) {
-    addLog(`Connected wallet · ${state.account}`);
+    addLog(`Connected wallet · ${shortAddress(state.account)}`);
     return;
   }
   await connectWallet();
 });
+
 form.addEventListener("submit", runCheck);
 $(".copy-address").addEventListener("click", () => copyText(CONTRACT_ADDRESS));
 $("#clear-console").addEventListener("click", () => {
   consoleBody.innerHTML = `<div class="console-empty"><span>01</span><p>Console cleared.<br/><em>Run a check to see its transaction trail.</em></p></div>`;
 });
+
 document.querySelectorAll('a[href^="#"]').forEach((link) => {
   link.addEventListener("click", (event) => {
     const target = document.querySelector(link.getAttribute("href"));
@@ -469,7 +558,7 @@ if (window.ethereum?.on) {
   window.ethereum.on("accountsChanged", (accounts) => {
     if (accounts?.[0]) {
       setWalletConnected(accounts[0]);
-      addLog(`Active wallet changed · ${accounts[0]}`);
+      addLog(`Active wallet changed · ${shortAddress(accounts[0])}`);
     } else {
       state.account = "";
       state.client = null;
