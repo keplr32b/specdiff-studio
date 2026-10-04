@@ -430,11 +430,27 @@ async function runCheck(event) {
     setStep("read", "active");
     setProgressSummary("Reading contract result", "active");
     addLog("Reading get_last(check_id)…");
-    const result = await state.client.readContract({
-      address: CONTRACT_ADDRESS,
-      functionName: "get_last",
-      args: [checkId],
-    });
+    let result = null;
+    let lastErr = null;
+    for (let i = 1; i <= 6; i++) {
+      try {
+        result = await state.client.readContract({
+          address: CONTRACT_ADDRESS,
+          functionName: "get_last",
+          args: [checkId],
+        });
+        if (result != null && result !== "") break;
+      } catch (e) {
+        lastErr = e;
+      }
+      if (i < 6) {
+        addLog("get_last not ready yet (try " + i + "/6). Waiting…");
+        await new Promise((r) => setTimeout(r, 8000));
+      }
+    }
+    if (result == null || result === "") {
+      throw new Error(lastErr?.message || "get_last empty after retries. Check run_check on explorer.");
+    }
     setStep("read", "complete");
     setProgressSummary("Result read from contract", "complete");
     addLog("Contract read completed. Result shown exactly as returned.", "success");
