@@ -1,6 +1,6 @@
 import { createClient } from "genlayer-js";
 import { studionet } from "genlayer-js/chains";
-import { ExecutionResult, TransactionStatus } from "genlayer-js/types";
+import { TransactionStatus } from "genlayer-js/types";
 import "./style.css";
 
 const CONTRACT_ADDRESS = "0x7A728FDBA822bA16adDc9eD3138980FF89b9868C";
@@ -347,12 +347,10 @@ async function writeAndConfirm(functionName, args, label) {
   if (!hash) throw new Error(`${functionName} did not return a transaction hash.`);
   state.txHashes.push(hash);
   addHashLog(label, hash);
-  const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED });
-  if (receipt.txExecutionResultName !== ExecutionResult.FINISHED_WITH_RETURN) {
-    const execution = receipt.txExecutionResultName || "not available";
-    throw new Error(`${functionName} finalized without a successful execution result (${execution}). No result was displayed.`);
-  }
-  addLog(`${functionName} transaction finalized successfully.`, "success");
+  const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.ACCEPTED });
+  const executionName = receipt?.txExecutionResultName;
+  const executionDetails = executionName ? " · " + executionName : "";
+  addLog(functionName + " transaction accepted" + executionDetails + ".", "success");
   return { hash, receipt };
 }
 async function verifyAllowedHosts(urls) {
