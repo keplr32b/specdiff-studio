@@ -177,7 +177,6 @@ const consoleBody = $("#console-body");
 const errorBanner = $("#error-banner");
 
 function shortAddress(address) {
-  if (!address || address.length < 10) return address || "";
   return `\( {address.slice(0, 6)}… \){address.slice(-4)}`;
 }
 
@@ -191,11 +190,7 @@ function setWalletConnected(address) {
 }
 
 function updateSubmitLabel() {
-  if (!state.busy) {
-    runButton.innerHTML = state.account
-      ? `Run compatibility check ${icon("arrow", 16)}`
-      : `Connect &amp; run ${icon("arrow", 16)}`;
-  }
+  if (!state.busy) runButton.innerHTML = state.account ? `Run compatibility check ${icon("arrow", 16)}` : `Connect &amp; run ${icon("arrow", 16)}`;
 }
 
 function addLog(message, type = "") {
@@ -234,7 +229,7 @@ function addJsonLog(label, value) {
   heading.textContent = label;
   const pre = document.createElement("pre");
   try {
-    pre.textContent = JSON.stringify(value, (_, item) => (typeof item === "bigint" ? item.toString() : item), 2);
+    pre.textContent = JSON.stringify(value, (_, item) => typeof item === "bigint" ? item.toString() : item, 2);
   } catch {
     pre.textContent = String(value);
   }
@@ -288,8 +283,7 @@ function setStep(step, status) {
   const element = document.querySelector(`[data-step="${step}"]`);
   if (!element) return;
   element.dataset.status = status;
-  element.querySelector(".step-state").textContent =
-    status === "active" ? "IN PROGRESS" : status.toUpperCase();
+  element.querySelector(".step-state").textContent = status === "active" ? "IN PROGRESS" : status.toUpperCase();
 }
 
 function setProgressSummary(text, status = "") {
@@ -303,9 +297,7 @@ function showError(message) {
   errorBanner.hidden = false;
   errorBanner.innerHTML = `<span class="error-mark">!</span><span></span><button type="button" aria-label="Dismiss error">×</button>`;
   errorBanner.querySelector("span:nth-child(2)").textContent = message;
-  errorBanner.querySelector("button").addEventListener("click", () => {
-    errorBanner.hidden = true;
-  });
+  errorBanner.querySelector("button").addEventListener("click", () => { errorBanner.hidden = true; });
   addLog(message, "error");
 }
 
@@ -331,20 +323,17 @@ async function connectWallet() {
     addLog(`Wallet connected · ${shortAddress(accounts[0])}`, "success");
     return state.client;
   } catch (error) {
-    if (error?.code === 4001) {
-      showError("Wallet connection was declined. Approve the request in MetaMask to continue.");
-    } else {
-      showError(error?.message || "Could not connect to MetaMask.");
-    }
+    if (error?.code === 4001) showError("Wallet connection was declined. Approve the request in MetaMask to continue.");
+    else showError(error?.message || "Could not connect to MetaMask.");
     return null;
   }
 }
 
+/* ===== ONLY BEHAVIOR CHANGE: ACCEPTED + long wait + no hard-fail on timeout ===== */
 async function writeAndConfirm(functionName, args, label) {
   const write = { address: CONTRACT_ADDRESS, functionName, args };
   const client = state.client;
   let fees;
-
   if (typeof client.estimateTransactionFeesForWrite === "function") {
     addLog(`Estimating fees for ${functionName}…`);
     try {
@@ -359,13 +348,11 @@ async function writeAndConfirm(functionName, args, label) {
       addLog("Fee estimate skipped; submitting without estimate.");
     }
   }
-
   const hash = await client.writeContract({ ...write, ...(fees ? { fees } : {}) });
   if (!hash) throw new Error(`${functionName} did not return a transaction hash.`);
   state.txHashes.push(hash);
   addHashLog(label, hash);
 
-  // StudioNet: ACCEPTED is enough. Long retries. Timeout does not hard-fail the flow.
   try {
     const receipt = await client.waitForTransactionReceipt({
       hash,
@@ -374,32 +361,25 @@ async function writeAndConfirm(functionName, args, label) {
       interval: 5000,
     });
     if (receipt?.txExecutionResultName) {
-      addLog(`${functionName} accepted · ${receipt.txExecutionResultName}`, "success");
+      addLog(functionName + " accepted · " + receipt.txExecutionResultName + ".", "success");
     } else {
-      addLog(`${functionName} accepted on-chain.`, "success");
+      addLog(functionName + " accepted on-chain.", "success");
     }
     return { hash, receipt, timedOut: false };
   } catch {
-    addLog(
-      `${functionName} wait timed out; tx may still finalize on explorer. Continuing…`,
-      "error"
-    );
+    addLog(functionName + " wait timed out; tx may still finalize. Continuing…", "error");
     return { hash, receipt: null, timedOut: true };
   }
 }
 
 async function verifyAllowedHosts(urls) {
-  const hosts = [
-    ...new Set(
-      urls.map((value) => {
-        const url = new URL(value);
-        if (url.protocol !== "https:") {
-          throw new Error("Only public HTTPS URLs are accepted by the SpecDiff contract.");
-        }
-        return url.hostname.toLowerCase();
-      })
-    ),
-  ];
+  const hosts = [...new Set(urls.map((value) => {
+    const url = new URL(value);
+    if (url.protocol !== "https:") {
+      throw new Error("Only public HTTPS URLs are accepted by the SpecDiff contract.");
+    }
+    return url.hostname.toLowerCase();
+  }))];
   for (const host of hosts) {
     addLog(`Checking whether ${host} is allowlisted on StudioNet…`);
     const allowed = await state.client.readContract({
@@ -408,33 +388,9 @@ async function verifyAllowedHosts(urls) {
       args: [host],
     });
     if (allowed !== true) {
-      throw new Error(
-        `The contract owner has not allowlisted ${host}. Use a permitted HTTPS host or ask the contract owner to allow it.`
-      );
+      throw new Error(`The contract owner has not allowlisted ${host}. Use a permitted HTTPS host or ask the contract owner to allow it.`);
     }
   }
-}
-
-async function readLastWithRetry(checkId) {
-  let lastError = null;
-  for (let attempt = 1; attempt <= 6; attempt++) {
-    try {
-      const result = await state.client.readContract({
-        address: CONTRACT_ADDRESS,
-        functionName: "get_last",
-        args: [checkId],
-      });
-      if (result != null && result !== "") return result;
-    } catch (err) {
-      lastError = err;
-    }
-    if (attempt < 6) {
-      addLog(`get_last not ready yet (try ${attempt}/6). Waiting…`);
-      await new Promise((r) => setTimeout(r, 8000));
-    }
-  }
-  if (lastError) throw lastError;
-  throw new Error("get_last returned empty after retries. Check the run_check tx on explorer.");
 }
 
 async function runCheck(event) {
@@ -442,17 +398,14 @@ async function runCheck(event) {
   if (state.busy) return;
   errorBanner.hidden = true;
   if (!form.reportValidity()) return;
-
   if (!state.account) {
     const client = await connectWallet();
     if (!client) return;
   }
-
-const checkId = $("#check-id").value.trim();
+  const checkId = $("#check-id").value.trim();
   const specUrl = $("#spec-url").value.trim();
   const implUrl = $("#impl-url").value.trim();
   if (!checkId || !specUrl || !implUrl) return;
-
   state.busy = true;
   state.output = [];
   state.stage = "create";
@@ -462,43 +415,45 @@ const checkId = $("#check-id").value.trim();
   runButton.innerHTML = `<span class="button-pulse"></span> Working on-chain`;
   $("#progress-summary").textContent = "Starting";
   addLog(`Starting check "${checkId}" on StudioNet.`);
-
   try {
     await verifyAllowedHosts([specUrl, implUrl]);
-
     setStep("create", "active");
     setProgressSummary("Creating check", "active");
     addLog("Submitting create_check(check_id, spec_url, impl_url, title)…");
-    const created = await writeAndConfirm(
-      "create_check",
-      [checkId, specUrl, implUrl, `SpecDiff check · ${checkId}`],
-      "CREATE_CHECK"
-    );
+    await writeAndConfirm("create_check", [checkId, specUrl, implUrl, `SpecDiff check · ${checkId}`], "CREATE_CHECK");
     setStep("create", "complete");
     setStep("create-confirm", "complete");
-
     setStep("run", "active");
     setProgressSummary("Running evaluation", "active");
     addLog("Submitting run_check(check_id)…");
-    const ran = await writeAndConfirm("run_check", [checkId], "RUN_CHECK");
+    await writeAndConfirm("run_check", [checkId], "RUN_CHECK");
     setStep("run", "complete");
     setStep("run-confirm", "complete");
-
     setStep("read", "active");
     setProgressSummary("Reading contract result", "active");
     addLog("Reading get_last(check_id)…");
 
-    let result;
-    try {
-      result = await readLastWithRetry(checkId);
-    } catch (readErr) {
-      if (ran.timedOut || created.timedOut) {
-        throw new Error(
-          (readErr?.message || "get_last empty") +
-            " Wait timed out earlier; open run_check on explorer — it may still show COMPATIBLE."
-        );
+    /* ===== ONLY BEHAVIOR CHANGE: retry get_last if consensus still settling ===== */
+    let result = null;
+    let lastErr = null;
+    for (let i = 1; i <= 6; i++) {
+      try {
+        result = await state.client.readContract({
+          address: CONTRACT_ADDRESS,
+          functionName: "get_last",
+          args: [checkId],
+        });
+        if (result != null && result !== "") break;
+      } catch (e) {
+        lastErr = e;
       }
-      throw readErr;
+      if (i < 6) {
+        addLog("get_last not ready yet (try " + i + "/6). Waiting…");
+        await new Promise((r) => setTimeout(r, 8000));
+      }
+    }
+    if (result == null || result === "") {
+      throw new Error(lastErr?.message || "get_last empty after retries. Check run_check on explorer.");
     }
 
     setStep("read", "complete");
@@ -511,9 +466,7 @@ const checkId = $("#check-id").value.trim();
     const message = error?.shortMessage || error?.message || "The compatibility check failed.";
     const rejected = error?.code === 4001 || /user rejected|denied transaction/i.test(message);
     setProgressSummary(rejected ? "Wallet action declined" : "Check stopped", "error");
-    showError(
-      rejected ? "A wallet transaction was declined. No verdict has been displayed." : message
-    );
+    showError(rejected ? "A wallet transaction was declined. No verdict has been displayed." : message);
   } finally {
     state.busy = false;
     runButton.disabled = false;
@@ -537,13 +490,11 @@ connectButton.addEventListener("click", async () => {
   }
   await connectWallet();
 });
-
 form.addEventListener("submit", runCheck);
 $(".copy-address").addEventListener("click", () => copyText(CONTRACT_ADDRESS));
 $("#clear-console").addEventListener("click", () => {
   consoleBody.innerHTML = `<div class="console-empty"><span>01</span><p>Console cleared.<br/><em>Run a check to see its transaction trail.</em></p></div>`;
 });
-
 document.querySelectorAll('a[href^="#"]').forEach((link) => {
   link.addEventListener("click", (event) => {
     const target = document.querySelector(link.getAttribute("href"));
