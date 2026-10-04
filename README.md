@@ -58,7 +58,7 @@ Full matrix (host reject, UNCLEAR, BREAKING, recheck): see [`verification/studio
 
 | Method | Role |
 |--------|------|
-| `allow_host(host)` | Owner — hostname only (e.g. `docs.genlayer.com`) |
+| `allow_host(host)` | Owner - hostname only (e.g. `docs.genlayer.com`) |
 | `is_host_allowed(host)` | View |
 | `create_check(id, spec_url, impl_url, title)` | Register pair |
 | `run_check(id)` / `recheck(id)` | Consensus judgment |
