@@ -144,9 +144,9 @@ document.querySelector("#app").innerHTML = `
               <div class="progress-head"><span>TRANSACTION PROGRESS</span><span id="progress-summary">Ready</span></div>
               <ol class="progress-steps">
                  <li data-step="create"><span class="step-indicator"></span><div><b>Create check</b><small>Write create_check(check_id, spec_url, impl_url, title)</small></div><span class="step-state">WAITING</span></li>
-                <li data-step="create-confirm"><span class="step-indicator"></span><div><b>Confirm creation</b><small>Wait for accepted transaction</small></div><span class="step-state">WAITING</span></li>
+                <li data-step="create-confirm"><span class="step-indicator"></span><div><b>Confirm creation</b><small>Wait for transaction finalization</small></div><span class="step-state">WAITING</span></li>
                 <li data-step="run"><span class="step-indicator"></span><div><b>Run evaluation</b><small>Write run_check(check_id)</small></div><span class="step-state">WAITING</span></li>
-                <li data-step="run-confirm"><span class="step-indicator"></span><div><b>Confirm evaluation</b><small>Wait for accepted transaction</small></div><span class="step-state">WAITING</span></li>
+                <li data-step="run-confirm"><span class="step-indicator"></span><div><b>Confirm evaluation</b><small>Wait for transaction finalization</small></div><span class="step-state">WAITING</span></li>
                 <li data-step="read"><span class="step-indicator"></span><div><b>Read latest result</b><small>Read get_last(check_id)</small></div><span class="step-state">WAITING</span></li>
               </ol>
             </div>
@@ -347,12 +347,12 @@ async function writeAndConfirm(functionName, args, label) {
   if (!hash) throw new Error(`${functionName} did not return a transaction hash.`);
   state.txHashes.push(hash);
   addHashLog(label, hash);
-  const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.ACCEPTED });
+  const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED });
   if (receipt.txExecutionResultName !== ExecutionResult.FINISHED_WITH_RETURN) {
     const execution = receipt.txExecutionResultName || "not available";
-    throw new Error(`${functionName} reached ACCEPTED, but execution did not return successfully (${execution}). No result was displayed.`);
+    throw new Error(`${functionName} finalized without a successful execution result (${execution}). No result was displayed.`);
   }
-  addLog(`${functionName} transaction accepted.`, "success");
+  addLog(`${functionName} transaction finalized successfully.`, "success");
   return { hash, receipt };
 }
 async function verifyAllowedHosts(urls) {
