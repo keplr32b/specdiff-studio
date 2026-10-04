@@ -144,9 +144,9 @@ document.querySelector("#app").innerHTML = `
               <div class="progress-head"><span>TRANSACTION PROGRESS</span><span id="progress-summary">Ready</span></div>
               <ol class="progress-steps">
                  <li data-step="create"><span class="step-indicator"></span><div><b>Create check</b><small>Write create_check(check_id, spec_url, impl_url, title)</small></div><span class="step-state">WAITING</span></li>
-                <li data-step="create-confirm"><span class="step-indicator"></span><div><b>Confirm creation</b><small>Wait for transaction finalization</small></div><span class="step-state">WAITING</span></li>
+                <li data-step="create-confirm"><span class="step-indicator"></span><div><b>Confirm creation</b><small>Wait for transaction acceptance</small></div><span class="step-state">WAITING</span></li>
                 <li data-step="run"><span class="step-indicator"></span><div><b>Run evaluation</b><small>Write run_check(check_id)</small></div><span class="step-state">WAITING</span></li>
-                <li data-step="run-confirm"><span class="step-indicator"></span><div><b>Confirm evaluation</b><small>Wait for transaction finalization</small></div><span class="step-state">WAITING</span></li>
+                <li data-step="run-confirm"><span class="step-indicator"></span><div><b>Confirm evaluation</b><small>Wait for transaction acceptance</small></div><span class="step-state">WAITING</span></li>
                 <li data-step="read"><span class="step-indicator"></span><div><b>Read latest result</b><small>Read get_last(check_id)</small></div><span class="step-state">WAITING</span></li>
               </ol>
             </div>
