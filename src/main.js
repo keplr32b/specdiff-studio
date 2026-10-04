@@ -335,23 +335,40 @@ async function writeAndConfirm(functionName, args, label) {
   let fees;
   if (typeof client.estimateTransactionFeesForWrite === "function") {
     addLog(`Estimating fees for ${functionName}…`);
-    const estimate = await client.estimateTransactionFeesForWrite(write);
-    if (estimate && "distribution" in estimate && "feeValue" in estimate) {
-      fees = { distribution: estimate.distribution, feeValue: estimate.feeValue };
-      addLog(`Fee estimate ready · ${String(estimate.feeValue)} fee value`);
-    } else {
-      addLog("Fee estimator returned no distribution and feeValue; submitting without estimate.");
+    try {
+      const estimate = await client.estimateTransactionFeesForWrite(write);
+      if (estimate && "distribution" in estimate && "feeValue" in estimate) {
+        fees = { distribution: estimate.distribution, feeValue: estimate.feeValue };
+        addLog(`Fee estimate ready · ${String(estimate.feeValue)} fee value`);
+      } else {
+        addLog("Fee estimator returned no distribution and feeValue; submitting without estimate.");
+      }
+    } catch {
+      addLog("Fee estimate skipped; submitting without estimate.");
     }
   }
   const hash = await client.writeContract({ ...write, ...(fees ? { fees } : {}) });
   if (!hash) throw new Error(`${functionName} did not return a transaction hash.`);
   state.txHashes.push(hash);
   addHashLog(label, hash);
-  const receipt = await client.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED });
-  const executionName = receipt?.txExecutionResultName;
-  const executionDetails = executionName ? " · " + executionName : "";
-  addLog(functionName + " transaction finalized" + executionDetails + ".", "success");
-  return { hash, receipt };
+
+  try {
+    const receipt = await client.waitForTransactionReceipt({
+      hash,
+      status: TransactionStatus.ACCEPTED,
+      retries: 180,
+      interval: 5000,
+    });
+    if (receipt?.txExecutionResultName) {
+      addLog(functionName + " accepted · " + receipt.txExecutionResultName + ".", "success");
+    } else {
+      addLog(functionName + " accepted on-chain.", "success");
+    }
+    return { hash, receipt, timedOut: false };
+  } catch {
+    addLog(functionName + " wait timed out; tx may still finalize. Continuing…", "error");
+    return { hash, receipt: null, timedOut: true };
+  }
 }
 async function verifyAllowedHosts(urls) {
   const hosts = [...new Set(urls.map((value) => {
